@@ -23,6 +23,6 @@
 
 
 ## 4. 聯絡我們
-  - 綠界技術客服信箱: techsupport@opay.tw
+  - 歐付寶技術客服信箱: techsupport@opay.tw
 
 
