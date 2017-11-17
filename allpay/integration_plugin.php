@@ -28,13 +28,13 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
 
         class WC_Gateway_Allpay extends WC_Payment_Gateway
         {
-            var $allpay_test_mode;
-            var $allpay_merchant_id;
-            var $allpay_hash_key;
-            var $allpay_hash_iv;
-            var $allpay_choose_payment;
-            var $allpay_payment_methods;
-            var $allpay_domain;
+            public $allpay_test_mode;
+            public $allpay_merchant_id;
+            public $allpay_hash_key;
+            public $allpay_hash_iv;
+            public $allpay_choose_payment;
+            public $allpay_payment_methods;
+            public $allpay_domain;
             
             public function __construct()
             {
@@ -609,7 +609,7 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                 $order->add_order_note($comments, true);
                 $order->payment_complete();
 
-                // 加入信用卡後四碼，提供電子發票開立使用 v1.1.0911 wesley
+                // 加入信用卡後四碼，提供電子發票開立使用
                 if(isset($allpay_feedback['card4no']) && !empty($allpay_feedback['card4no']))
                 {
                     add_post_meta( $order->id, 'card4no', $allpay_feedback['card4no'], true);
@@ -637,7 +637,7 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                     if (is_file( get_home_path() . '/wp-content/plugins/allpay_invoice/woocommerce-allpayinvoice.php')) {
                         $aConfig_Invoice = get_option('wc_allpayinvoice_active_model');
 
-                        // 記錄目前成功付款到第幾次 wesley 170927
+                        // 記錄目前成功付款到第幾次
                         $nTotalSuccessTimes = ( isset($allpay_feedback['TotalSuccessTimes']) && ( empty($allpay_feedback['TotalSuccessTimes']) || $allpay_feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $allpay_feedback['TotalSuccessTimes'] ;
                         update_post_meta($order->id, '_total_success_times', $nTotalSuccessTimes );
 
@@ -649,7 +649,7 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                     if (is_file( get_home_path() . '/wp-content/plugins/ecpay_invoice/woocommerce-ecpayinvoice.php')) {
                         $aConfig_Invoice = get_option('wc_ecpayinvoice_active_model');
 
-                        // 記錄目前成功付款到第幾次 wesley 170927
+                        // 記錄目前成功付款到第幾次
                         $nTotalSuccessTimes = ( isset($allpay_feedback['TotalSuccessTimes']) && ( empty($allpay_feedback['TotalSuccessTimes']) || $allpay_feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $allpay_feedback['TotalSuccessTimes'] ;
                         update_post_meta($order->id, '_total_success_times', $nTotalSuccessTimes );
 
@@ -795,15 +795,14 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                                             $i++;
                                             echo '<tr class="account">
                                                 <td class="sort"></td>
-                                                <td><input type="text" class="fieldPeriodType" value="' . esc_attr( $dca['periodType'] ) . '" name="periodType[' . $i . ']" required /></td>
-                                                <td><input type="number" class="fieldFrequency" value="' . esc_attr( $dca['frequency'] ) . '" name="frequency[' . $i . ']" required /></td>
-                                                <td><input type="number" class="fieldExecTimes" value="' . esc_attr( $dca['execTimes'] ) . '" name="execTimes[' . $i . ']" required /></td>
+                                                <td><input type="text" class="fieldPeriodType" value="' . esc_attr( $dca['periodType'] ) . '" name="periodType[' . $i . ']" maxlength="1" required /></td>
+                                                <td><input type="number" class="fieldFrequency" value="' . esc_attr( $dca['frequency'] ) . '" name="frequency[' . $i . ']"  min="1" max="365" required /></td>
+                                                <td><input type="number" class="fieldExecTimes" value="' . esc_attr( $dca['execTimes'] ) . '" name="execTimes[' . $i . ']"  min="2" max="999" required /></td>
                                             </tr>';
                                         }
                                     }
                                 ?>
                             </tbody>
-                            <?php /* 動態新增/刪除 定期定額方式 ?>
                             <tfoot>
                                 <tr>
                                     <th colspan="4">
@@ -812,7 +811,6 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                                     </th>
                                 </tr>
                             </tfoot>
-                            <?php */ ?>
                         </table>
                         <p class="description"><?php echo __('Don\'t forget to save after make any changes.', 'allpay'); ?></p>
                         <script type="text/javascript">
@@ -822,37 +820,26 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
 
                                     jQuery('<tr class="account">\
                                             <td class="sort"></td>\
-                                            <td><input type="text" class="fieldPeriodType" name="periodType[' + size + ']" required /></td>\
-                                            <td><input type="number" class="fieldFrequency" name="frequency[' + size + ']" required /></td>\
-                                            <td><input type="number" class="fieldExecTimes" name="execTimes[' + size + ']" required /></td>\
+                                            <td><input type="text" class="fieldPeriodType" name="periodType[' + size + ']" maxlength="1" required /></td>\
+                                            <td><input type="number" class="fieldFrequency" name="frequency[' + size + ']" min="1" max="365" required /></td>\
+                                            <td><input type="number" class="fieldExecTimes" name="execTimes[' + size + ']" min="2" max="999" required /></td>\
                                         </tr>').appendTo('#allpay_dca table tbody');
-
                                     return false;
                                 });
 
                                 jQuery('#allpay_dca').on( 'blur', 'input', function() {
-                                    var size = jQuery('#allpay_dca').find('tbody .account').length;
+                                    let field = this.value.trim();
+                                    let indexStart = this.name.search(/[[]/g);
+                                    let indexEnd = this.name.search(/[\]]/g);
+                                    let fieldIndex = this.name.substring(indexStart + 1, indexEnd);
+                                    let fieldPeriodType = document.getElementsByName('periodType[' + fieldIndex + ']')[0].value;
 
-                                    var fieldPeriodType = document.getElementsByClassName('fieldPeriodType');
-                                    var fieldFrequency = document.getElementsByClassName('fieldFrequency');
-                                    var fieldExecTimes = document.getElementsByClassName('fieldExecTimes');
-
-                                    for (var i = 0; i < size; i++) {
-                                        if (
-                                            fieldPeriodType[i].value.length !== 0
-                                            && fieldFrequency[i].value.length !== 0
-                                            && fieldExecTimes[i].value.length !== 0
-                                        ) {
-                                            if (validateFields.periodType(fieldPeriodType[i].value) === false) {
-                                                alert('<?php echo __('Invalid Peroid Type.', 'allpay'); ?>');
-                                            }
-                                            if (validateFields.frequency(fieldPeriodType[i].value, fieldFrequency[i].value) === false) {
-                                                alert('<?php echo __('Invalid Frequency.', 'allpay'); ?>');
-                                            }
-                                            if (validateFields.execTimes(fieldPeriodType[i].value, fieldExecTimes[i].value) === false) {
-                                                alert('<?php echo __('Invalid Execute Times.', 'allpay'); ?>');
-                                            }
-                                        }
+                                    if (
+                                        (validateFields.periodType(field) === false && this.className === 'fieldPeriodType') ||
+                                        (validateFields.frequency(fieldPeriodType, field) === false && this.className === 'fieldFrequency') ||
+                                        (validateFields.execTimes(fieldPeriodType, field) === false && this.className === 'fieldExecTimes')
+                                    ){
+                                        this.value = '';
                                     }
                                 });
                             });
@@ -1212,7 +1199,7 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                 $order->add_order_note($comments, true);
                 $order->payment_complete();
 
-                // 加入信用卡後四碼，提供電子發票開立使用 v1.1.0911 wesley
+                // 加入信用卡後四碼，提供電子發票開立使用
                 if(isset($allpay_feedback['card4no']) && !empty($allpay_feedback['card4no']))
                 {
                     add_post_meta( $order->id, 'card4no', $allpay_feedback['card4no'], true);
@@ -1242,7 +1229,7 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                     if (is_file( get_home_path() . '/wp-content/plugins/allpay_invoice/woocommerce-allpayinvoice.php')) {
                         $aConfig_Invoice = get_option('wc_allpayinvoice_active_model');
 
-                        // 記錄目前成功付款到第幾次 wesley 170927
+                        // 記錄目前成功付款到第幾次
                         $nTotalSuccessTimes = ( isset($allpay_feedback['TotalSuccessTimes']) && ( empty($allpay_feedback['TotalSuccessTimes']) || $allpay_feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $allpay_feedback['TotalSuccessTimes'] ;
                         update_post_meta($order->id, '_total_success_times', $nTotalSuccessTimes );
 
@@ -1255,7 +1242,7 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                     if (is_file( get_home_path() . '/wp-content/plugins/ecpay_invoice/woocommerce-ecpayinvoice.php')) {
                         $aConfig_Invoice = get_option('wc_ecpayinvoice_active_model');
 
-                        // 記錄目前成功付款到第幾次 wesley 170927
+                        // 記錄目前成功付款到第幾次
                         $nTotalSuccessTimes = ( isset($allpay_feedback['TotalSuccessTimes']) && ( empty($allpay_feedback['TotalSuccessTimes']) || $allpay_feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $allpay_feedback['TotalSuccessTimes'] ;
                         update_post_meta($order->id, '_total_success_times', $nTotalSuccessTimes );
 
