@@ -16,7 +16,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 require_once(ABSPATH . 'wp-admin/includes/file.php');
 
-
     add_action('plugins_loaded', 'allpay_integration_plugin_init', 0);
     
     function allpay_integration_plugin_init()
@@ -46,7 +45,7 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                 $this->id = 'allpay';
                 
                 # Title of the payment method shown on the admin page
-                $this->method_title = $this->tran('allPay');
+                $this->method_title = $this->tran('OPay');
 
                 # If you want to show an image next to the gateway’s name on the frontend, enter a URL to an image
                 $this->icon = apply_filters('woocommerce_allpay_icon', plugins_url('images/icon.png', __FILE__));
@@ -149,8 +148,8 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
              */
             public function admin_options()
             {
-                echo $this->add_next_line('<h3>' . $this->tran('allPay Integration Payments') . '</h3>');
-                echo $this->add_next_line('<p>' . $this->tran('allPay is the most popular payment gateway for online shopping in Taiwan') . '</p>');
+                echo $this->add_next_line('<h3>' . $this->tran('OPay Integration Payments') . '</h3>');
+                echo $this->add_next_line('<p>' . $this->tran('OPay is the most popular payment gateway for online shopping in Taiwan') . '</p>');
                 echo $this->add_next_line('<table class="form-table">');
                 
                 # Generate the HTML For the settings form.
@@ -199,7 +198,7 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
             {
                 # Update order status
                 $order = new WC_Order($order_id);
-                $order->update_status('pending', $this->tran('Awaiting allPay payment'));
+                $order->update_status('pending', $this->tran('Awaiting OPay payment'));
                 
                 # Set the allPay payment type to the order note
                 $order->add_order_note($this->allpay_choose_payment, true);
@@ -236,8 +235,8 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                     $aio->HashIV = $this->allpay_hash_iv;
                     $aio->ServiceURL = $service_url;
                     $aio->Send['ReturnURL'] = add_query_arg('wc-api', 'WC_Gateway_Allpay', home_url('/'));
-                    $aio->Send['ClientBackURL'] = home_url('?page_id=' . get_option('woocommerce_myaccount_page_id') . '&view-order=' . $order->id);
-                    $aio->Send['MerchantTradeNo'] .= $order->id;
+                    $aio->Send['ClientBackURL'] = home_url('?page_id=' . get_option('woocommerce_myaccount_page_id') . '&view-order=' . $order->get_id());
+                    $aio->Send['MerchantTradeNo'] .= $order->get_id();
                     $aio->Send['MerchantTradeDate'] = date('Y/m/d H:i:s');
 
                     // 接收額外回傳參數 提供電子發票使用 v1.1.0911
@@ -248,9 +247,10 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                     array_push(
                         $aio->Send['Items'],
                         array(
-                            'Name' => '網路商品一批',
-                            'Price' => $aio->Send['TotalAmount'],
-                            'Currency' => $order->get_order_currency(),
+                            'Name'     => '網路商品一批',
+                            'Price'    => $aio->Send['TotalAmount'],
+                            'Currency' => $order->get_currency(),
+                            'URL'      => '',
                             'Quantity' => 1
                         )
                     );
@@ -262,7 +262,9 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                     $choose_payment = '';
                     $choose_installment = '';
                     if (isset($notes[0])) {
-                        list($choose_payment, $choose_installment) = explode('_', $notes[0]->comment_content);
+                        $chooseParam = explode('_', $notes[0]->comment_content);
+                        $choose_payment =isset($chooseParam[0]) ? $chooseParam[0] : '';
+                        $choose_installment = isset($chooseParam[1]) ? $chooseParam[1] : '';
                     }
                     $aio->Send['ChoosePayment'] = $choose_payment;
                     
@@ -519,7 +521,7 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
             {
                 if (!class_exists('AllInOne')) {
                     if (!require(plugin_dir_path(__FILE__) . '/lib/AllPay.Payment.Integration.php')) {
-                        throw new Exception($this->tran('allPay module missed.'));
+                        throw new Exception($this->tran('OPay module missed.'));
                     }
                 }
             }
@@ -612,7 +614,7 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                 // 加入信用卡後四碼，提供電子發票開立使用
                 if(isset($allpay_feedback['card4no']) && !empty($allpay_feedback['card4no']))
                 {
-                    add_post_meta( $order->id, 'card4no', $allpay_feedback['card4no'], true);
+                    add_post_meta( $order->get_id(), 'card4no', $allpay_feedback['card4no'], true);
                 }
 
                 // call invoice model
@@ -639,10 +641,10 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
 
                         // 記錄目前成功付款到第幾次
                         $nTotalSuccessTimes = ( isset($allpay_feedback['TotalSuccessTimes']) && ( empty($allpay_feedback['TotalSuccessTimes']) || $allpay_feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $allpay_feedback['TotalSuccessTimes'] ;
-                        update_post_meta($order->id, '_total_success_times', $nTotalSuccessTimes );
+                        update_post_meta($order->get_id(), '_total_success_times', $nTotalSuccessTimes );
 
                         if (isset($aConfig_Invoice) && $aConfig_Invoice['wc_allpay_invoice_enabled'] == 'enable' && $aConfig_Invoice['wc_allpay_invoice_auto'] == 'auto' ) {
-                            do_action('allpay_auto_invoice', $order->id, $ecpay_feedback['SimulatePaid']);
+                            do_action('allpay_auto_invoice', $order->get_id(), $ecpay_feedback['SimulatePaid']);
                         }
                     }
                 } elseif ($invoice_active_ecpay == 1 && $invoice_active_allpay == 0) { // ecpay
@@ -651,10 +653,10 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
 
                         // 記錄目前成功付款到第幾次
                         $nTotalSuccessTimes = ( isset($allpay_feedback['TotalSuccessTimes']) && ( empty($allpay_feedback['TotalSuccessTimes']) || $allpay_feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $allpay_feedback['TotalSuccessTimes'] ;
-                        update_post_meta($order->id, '_total_success_times', $nTotalSuccessTimes );
+                        update_post_meta($order->get_id(), '_total_success_times', $nTotalSuccessTimes );
 
                         if (isset($aConfig_Invoice) && $aConfig_Invoice['wc_ecpay_invoice_enabled'] == 'enable' && $aConfig_Invoice['wc_ecpay_invoice_auto'] == 'auto' ) {
-                            do_action('ecpay_auto_invoice', $order->id, $ecpay_feedback['SimulatePaid']);
+                            do_action('ecpay_auto_invoice', $order->get_id(), $ecpay_feedback['SimulatePaid']);
                         }
                     }
                 }
@@ -813,6 +815,7 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                             </tfoot>
                         </table>
                         <p class="description"><?php echo __('Don\'t forget to save after make any changes.', 'allpay'); ?></p>
+                        <p id="fieldsNotification" style="display: none;"><?php echo __('OPay paid automatically details has been repeatedly, please confirm again.', 'allpay'); ?></p>
                         <script type="text/javascript">
                             jQuery(function() {
                                 jQuery('#allpay_dca').on( 'click', 'a.add', function() {
@@ -842,6 +845,14 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                                         this.value = '';
                                     }
                                 });
+
+                                jQuery('#allpay_dca').on( 'blur', 'tbody', function() {
+                                    fields.process();
+                                });
+
+                                jQuery('body').on( 'click', '#mainform', function() {
+                                    fields.process();
+                                });
                             });
 
                             var data = {
@@ -849,6 +860,52 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                                 'frequency': ['365', '12', '1'],
                                 'execTimes': ['999', '99', '9']
                             };
+
+                            var fields = {
+                                get: function() {
+                                    var field = jQuery('#allpay_dca').find('tbody .account td input');
+                                    var fieldsInput = [];
+                                    var fieldsTmp = [];
+                                    var i = 0;
+                                    Object.keys(field).forEach(function(key) {
+                                        if (field[key].value != null) {
+                                            i++;
+                                            if (i % 3 == 0) {
+                                                fieldsTmp.push(field[key].value);
+                                                fieldsInput.push(fieldsTmp);
+                                                fieldsTmp = [];
+                                            } else {
+                                                fieldsTmp.push(field[key].value);
+                                            }
+                                        }
+                                    });
+
+                                    return fieldsInput;
+                                },
+                                check: function(inputs) {
+                                    var errorFlag = 0;
+                                    inputs.forEach(function(key1, index1) {
+                                        inputs.forEach(function(key2, index2) {
+                                            if (index1 !== index2) {
+                                                if (key1[0] === key2[0] && key1[1] === key2[1] && key1[2] === key2[2]) {
+                                                    errorFlag++;
+                                                }
+                                            }
+                                        })
+                                    });
+
+                                    return errorFlag;
+                                },
+                                process: function() {
+                                    if (fields.check(fields.get()) > 0) {
+                                        document.getElementById('fieldsNotification').style = 'color: #ff0000;';
+                                        document.querySelector('input[name="save"]').disabled = true;
+                                    } else {
+                                        document.getElementById('fieldsNotification').style = 'display: none;';
+                                        document.querySelector('input[name="save"]').disabled = false;
+                                    }
+                                }
+                            }
 
                             var validateFields = {
                                 periodType: function(field) {
@@ -1043,8 +1100,8 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                     $aio->HashIV = $this->allpay_hash_iv;
                     $aio->ServiceURL = $service_url;
                     $aio->Send['ReturnURL'] = add_query_arg('wc-api', 'WC_Gateway_Allpay', home_url('/'));
-                    $aio->Send['ClientBackURL'] = home_url('?page_id=' . get_option('woocommerce_myaccount_page_id') . '&view-order=' . $order->id);
-                    $aio->Send['MerchantTradeNo'] .= $order->id;
+                    $aio->Send['ClientBackURL'] = home_url('?page_id=' . get_option('woocommerce_myaccount_page_id') . '&view-order=' . $order->get_id());
+                    $aio->Send['MerchantTradeNo'] .= $order->get_id();
                     $aio->Send['MerchantTradeDate'] = date('Y/m/d H:i:s');
 
                     // 接收額外回傳參數 提供電子發票使用 v1.1.0911
@@ -1055,9 +1112,10 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                     array_push(
                         $aio->Send['Items'],
                         array(
-                            'Name' => '網路商品一批',
-                            'Price' => $aio->Send['TotalAmount'],
-                            'Currency' => $order->get_order_currency(),
+                            'Name'     => '網路商品一批',
+                            'Price'    => $aio->Send['TotalAmount'],
+                            'Currency' => $order->get_currency(),
+                            'URL'      => '',
                             'Quantity' => 1
                         )
                     );
@@ -1202,7 +1260,7 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                 // 加入信用卡後四碼，提供電子發票開立使用
                 if(isset($allpay_feedback['card4no']) && !empty($allpay_feedback['card4no']))
                 {
-                    add_post_meta( $order->id, 'card4no', $allpay_feedback['card4no'], true);
+                    add_post_meta( $order->get_id(), 'card4no', $allpay_feedback['card4no'], true);
                 }
 
 
@@ -1231,11 +1289,11 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
 
                         // 記錄目前成功付款到第幾次
                         $nTotalSuccessTimes = ( isset($allpay_feedback['TotalSuccessTimes']) && ( empty($allpay_feedback['TotalSuccessTimes']) || $allpay_feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $allpay_feedback['TotalSuccessTimes'] ;
-                        update_post_meta($order->id, '_total_success_times', $nTotalSuccessTimes );
+                        update_post_meta($order->get_id(), '_total_success_times', $nTotalSuccessTimes );
 
                         if (isset($aConfig_Invoice) && $aConfig_Invoice['wc_allpay_invoice_enabled'] == 'enable' && $aConfig_Invoice['wc_allpay_invoice_auto'] == 'auto' ) {
                             
-                            do_action('allpay_auto_invoice', $order->id, $ecpay_feedback['SimulatePaid']);
+                            do_action('allpay_auto_invoice', $order->get_id(), $ecpay_feedback['SimulatePaid']);
                         }
                     }
                 } elseif ($invoice_active_ecpay == 1 && $invoice_active_allpay == 0) { // ecpay
@@ -1244,10 +1302,10 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
 
                         // 記錄目前成功付款到第幾次
                         $nTotalSuccessTimes = ( isset($allpay_feedback['TotalSuccessTimes']) && ( empty($allpay_feedback['TotalSuccessTimes']) || $allpay_feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $allpay_feedback['TotalSuccessTimes'] ;
-                        update_post_meta($order->id, '_total_success_times', $nTotalSuccessTimes );
+                        update_post_meta($order->get_id(), '_total_success_times', $nTotalSuccessTimes );
 
                         if (isset($aConfig_Invoice) && $aConfig_Invoice['wc_ecpay_invoice_enabled'] == 'enable' && $aConfig_Invoice['wc_ecpay_invoice_auto'] == 'auto' ) {
-                            do_action('ecpay_auto_invoice', $order->id, $ecpay_feedback['SimulatePaid']);
+                            do_action('ecpay_auto_invoice', $order->get_id(), $ecpay_feedback['SimulatePaid']);
                         }
                     }
                 }
