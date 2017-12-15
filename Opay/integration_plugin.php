@@ -225,10 +225,10 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                     $aio->Send['MerchantTradeNo'] = '';
                     $service_url = '';
                     if ($this->allpay_test_mode == 'yes') {
-                        $service_url = 'https://payment-stage.allpay.com.tw/Cashier/AioCheckOut';
+                        $service_url = 'https://payment-stage.opay.tw/Cashier/AioCheckOut';
                         $aio->Send['MerchantTradeNo'] = date('YmdHis');
                     } else {
-                        $service_url = 'https://payment.allpay.com.tw/Cashier/AioCheckOut';
+                        $service_url = 'https://payment.opay.tw/Cashier/AioCheckOut';
                     }
                     $aio->MerchantID = $this->allpay_merchant_id;
                     $aio->HashKey = $this->allpay_hash_key;
@@ -1090,10 +1090,10 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
                     $aio->Send['MerchantTradeNo'] = '';
                     $service_url = '';
                     if ($this->allpay_test_mode == 'yes') {
-                        $service_url = 'https://payment-stage.allpay.com.tw/Cashier/AioCheckOut';
+                        $service_url = 'https://payment-stage.opay.tw/Cashier/AioCheckOut';
                         $aio->Send['MerchantTradeNo'] = date('YmdHis');
                     } else {
-                        $service_url = 'https://payment.allpay.com.tw/Cashier/AioCheckOut';
+                        $service_url = 'https://payment.opay.tw/Cashier/AioCheckOut';
                     }
                     $aio->MerchantID = $this->allpay_merchant_id;
                     $aio->HashKey = $this->allpay_hash_key;
