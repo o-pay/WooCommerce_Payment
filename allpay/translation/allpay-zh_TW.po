@@ -38,7 +38,7 @@ msgid "This controls the description which the user sees during checkout."
 msgstr "此項目控制使用者在結帳時會看到的說明."
 
 msgid "Test Mode"
-msgstr "測試模式"
+msgstr "測試模式."
 
 msgid "Test order will add date as prefix."
 msgstr "測試訂單將加上日期作為前綴"
