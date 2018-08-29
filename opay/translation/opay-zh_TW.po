@@ -77,8 +77,8 @@ msgstr "付款方式 : %s<br />付款時間 : %s<br />"
 msgid "Getting Code Result : (%s)%s"
 msgstr "取號結果 : (%s)%s"
 
-msgid "Payment Result : (%s)%s"
-msgstr "付款結果 : (%s)%s"
+msgid "O'Pay Payment Result : (%s)%s"
+msgstr "歐付寶付款結果 : (%s)%s"
 
 msgid "Faild To Pay<br />Error : %s<br />"
 msgstr "付款失敗<br />錯誤訊息 : %s<br />"

@@ -230,7 +230,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                 )
             );
             
-            $aio->Send['TradeDesc'] = 'OPay_module_woocommerce_1.2.0118';
+            $aio->Send['TradeDesc'] = 'OPay_module_woocommerce';
             
             # Get the chosen payment and installment
             $notes = $order->get_customer_order_notes();
@@ -336,7 +336,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                     
                     # Set the payment result comments
                     $payment_result_comments = sprintf(
-                        $this->tran('Payment Result : (%s)%s'),
+                        __($this->method_title . ' Payment Result : (%s)%s', 'opay'),
                         $return_code,
                         $return_message
                     );
@@ -351,60 +351,108 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                     switch($opay_payment_method) {
                         
                         case PaymentMethod::Credit:
-                            if ($return_code != 1 and $return_code != 800) {
+                            if ($return_code != 1 and $return_code != 800)
+                            {
                                 throw new Exception($fail_msg);
-                            } else {
-                                if (!$this->is_order_complete($order) || ( isset($opay_feedback['TotalSuccessTimes']) && !empty($opay_feedback['TotalSuccessTimes']) ) ) {
+                            }
+                            else
+                            {
+                                if (!$this->is_order_complete($order))
+                                {
                                     $this->confirm_order($order, $payment_result_comments, $opay_feedback);
-                                } else {
-                                    # The order already paid or not in the standard procedure, do nothing
+
+                                    // 增加付款狀態
+                                    add_post_meta( $order->id, 'opay_payment_tag', 1, true);  
+                                }
+                                else
+                                {
+                                    $nOpay_Payment_Tag = get_post_meta($order->id, 'opay_payment_tag', true);
+                                    if($nOpay_Payment_Tag == 0)
+                                    {
+                                        $order->add_order_note($payment_result_comments, 1);
+                                        add_post_meta( $order->id, 'opay_payment_tag', 1, true);  
+                                    }
                                 }
                             }
                         break;
 
                         case PaymentMethod::WebATM:
                         case PaymentMethod::TopUpUsed:
-                            if ($return_code != 1 and $return_code != 800) {
+                            if ($return_code != 1 and $return_code != 800)
+                            {
                                 throw new Exception($fail_msg);
-                            } else {
-                                if (!$this->is_order_complete($order)) {
+                            }
+                            else
+                            {
+                                if (!$this->is_order_complete($order))
+                                {
 
                                     $this->confirm_order($order, $payment_result_comments, $opay_feedback);
-                                } else {
-                                    # The order already paid or not in the standard procedure, do nothing
+
+                                    // 增加付款狀態
+                                    add_post_meta( $order->id, 'opay_payment_tag', 1, true);  
+                                }
+                                else
+                                {
+                                    $nOpay_Payment_Tag = get_post_meta($order->id, 'opay_payment_tag', true);
+                                    if($nOpay_Payment_Tag == 0)
+                                    {
+                                        $order->add_order_note($payment_result_comments, 1);
+                                        add_post_meta( $order->id, 'opay_payment_tag', 1, true);  
+                                    }
                                 }
                             }
                             break;
                         case PaymentMethod::ATM:
-                            if ($return_code != 1 and $return_code != 2 and $return_code != 800) {
+                            if ($return_code != 1 and $return_code != 2 and $return_code != 800)
+                            {
                                 throw new Exception($fail_msg);
-                            } else {
-                                if ($return_code == 2) {
+                            }
+                            else
+                            {
+                                if ($return_code == 2)
+                                {
                                     # Set the getting code result
                                     $comments .= $this->get_order_comments($opay_feedback);
                                     $comments .= $get_code_result_comments;
                                     $order->add_order_note($comments);
 
-                                     // 紀錄付款資訊提供感謝頁面使用
+                                    // 紀錄付款資訊提供感謝頁面使用
                                     add_post_meta( $order->id, 'payment_method', 'ATM', true);
                                     add_post_meta( $order->id, 'BankCode', $opay_feedback['BankCode'], true);
                                     add_post_meta( $order->id, 'vAccount', $opay_feedback['vAccount'], true);
                                     add_post_meta( $order->id, 'ExpireDate', $opay_feedback['ExpireDate'], true);
-
-                                } else {
-                                    if (!$this->is_order_complete($order)) {
+                                }
+                                else
+                                {
+                                    if (!$this->is_order_complete($order))
+                                    {
                                         $this->confirm_order($order, $payment_result_comments, $opay_feedback);
-                                    } else {
-                                        # The order already paid or not in the standard procedure, do nothing
+
+                                        // 增加付款狀態
+                                        add_post_meta( $order->id, 'opay_payment_tag', 1, true);  
+                                    }
+                                    else
+                                    {
+                                        $nOpay_Payment_Tag = get_post_meta($order->id, 'opay_payment_tag', true);
+                                        if($nOpay_Payment_Tag == 0)
+                                        {
+                                            $order->add_order_note($payment_result_comments, 1);
+                                            add_post_meta( $order->id, 'opay_payment_tag', 1, true);  
+                                        }
                                     }
                                 }
                             }
                             break;
                         case PaymentMethod::CVS:
-                            if ($return_code != 1 and $return_code != 800 and $return_code != 10100073) {
+                            if ($return_code != 1 and $return_code != 800 and $return_code != 10100073)
+                            {
                                 throw new Exception($fail_msg);
-                            } else {
-                                if ($return_code == 10100073) {
+                            }
+                            else
+                            {
+                                if ($return_code == 10100073)
+                                {
                                     # Set the getting code result
                                     $comments .= $this->get_order_comments($opay_feedback);
                                     $comments .= $get_code_result_comments;
@@ -414,12 +462,24 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                                     add_post_meta( $order->id, 'payment_method', 'CVS', true);
                                     add_post_meta( $order->id, 'PaymentNo', $opay_feedback['PaymentNo'], true);
                                     add_post_meta( $order->id, 'ExpireDate', $opay_feedback['ExpireDate'], true);
-
-                                } else {
-                                    if (!$this->is_order_complete($order)) {
+                                }
+                                else
+                                {
+                                    if (!$this->is_order_complete($order))
+                                    {
                                         $this->confirm_order($order, $payment_result_comments, $opay_feedback);
-                                    } else {
-                                        # The order already paid or not in the standard procedure, do nothing
+
+                                        // 增加付款狀態
+                                        add_post_meta( $order->id, 'opay_payment_tag', 1, true);  
+                                    }
+                                    else
+                                    {
+                                        $nOpay_Payment_Tag = get_post_meta($order->id, 'opay_payment_tag', true);
+                                        if($nOpay_Payment_Tag == 0)
+                                        {
+                                            $order->add_order_note($payment_result_comments, 1);
+                                            add_post_meta( $order->id, 'opay_payment_tag', 1, true);  
+                                        }
                                     }
                                 }
                             }
@@ -434,7 +494,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
             $error = $e->getMessage();
             if (!empty($order)) {
                 $comments .= sprintf($this->tran('Faild To Pay<br />Error : %s<br />'), $error);
-                $order->update_status('failed', $comments);
+                $order->add_order_note($comments);
             }
             
             # Set the failure result
@@ -719,8 +779,6 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
             echo '<section><h2>' . __( 'Payment details', 'opay' ) . '</h2>' . PHP_EOL . $account_html . '</section>';
         }
     }
-
-
 }
 
 class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
@@ -1182,7 +1240,7 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
                 )
             );
             
-            $aio->Send['TradeDesc'] = 'OPay_module_woocommerce_1.2.0118';
+            $aio->Send['TradeDesc'] = 'opay_module_woocommerce';
             
             $notes = $order->get_customer_order_notes();
             $PeriodType = '';
@@ -1259,7 +1317,7 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
                     
                     # Set the payment result comments
                     $payment_result_comments = sprintf(
-                        $this->tran('Payment Result : (%s)%s'),
+                        __( $this->method_title . ' Payment Result : (%s)%s', 'opay'),
                         $return_code,
                         $return_message
                     );
@@ -1283,7 +1341,7 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
             $error = $e->getMessage();
             if (!empty($order)) {
                 $comments .= sprintf($this->tran('Faild To Pay<br />Error : %s<br />'), $error);
-                $order->update_status('failed', $comments);
+                $order->add_order_note($comments);
             }
             
             # Set the failure result
