@@ -51,6 +51,8 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
         add_action('woocommerce_api_wc_gateway_' . $this->id, array($this, 'receive_response'));
 
         add_action( 'woocommerce_thankyou_opay', array( $this, 'thankyou_page' ) );
+
+        add_filter('woocommerce_available_payment_gateways', array( $this, 'woocs_filter_gateways' ) );
     }
     
     /**
@@ -779,6 +781,19 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
             echo '<section><h2>' . __( 'Payment details', 'opay' ) . '</h2>' . PHP_EOL . $account_html . '</section>';
         }
     }
+
+    /**
+    * 過濾重複付款
+    */
+    public function woocs_filter_gateways($gateway_list)
+    {
+       if(isset($_GET['pay_for_order']))
+       {
+            unset($gateway_list['opay']);
+            unset($gateway_list['opay_dca']);
+       }
+       return $gateway_list;
+    }
 }
 
 class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
@@ -844,6 +859,8 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
         add_action('woocommerce_api_wc_gateway_' . $this->id, array($this, 'receive_response'));
 
         add_action( 'woocommerce_thankyou_opay', array( $this, 'thankyou_page' ) );
+
+        add_filter('woocommerce_available_payment_gateways', array( $this, 'woocs_filter_gateways' ) );
     }
     
     /**
@@ -1450,5 +1467,18 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
      */
     private function payment_details( $order_id = '' ) {
 
+    }
+
+    /**
+    * 過濾重複付款
+    */
+    public function woocs_filter_gateways($gateway_list)
+    {
+       if(isset($_GET['pay_for_order']))
+       {
+            unset($gateway_list['opay']);
+            unset($gateway_list['opay_dca']);
+       }
+       return $gateway_list;
     }
 }
