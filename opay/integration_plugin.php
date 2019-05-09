@@ -1,12 +1,12 @@
 <?php
 /**
 * @copyright  Copyright © 2017 O'Pay Electronic Payment Co., Ltd.(https://www.opay.tw)
-* @version 1.2.180423
+* @version 1.2.190506
 *
 * Plugin Name: WooCommerce O'Pay Payment
 * Plugin URI: https://www.opay.tw
 * Description: O'Pay Integration Payment Gateway for WooCommerce
-* Version: 1.2.180423
+* Version: 1.2.190506
 * Author: O'Pay Electronic Payment Co., Ltd.
 * Author URI: https://www.opay.tw
 */
@@ -18,9 +18,10 @@ require_once(ABSPATH . 'wp-admin/includes/file.php');
 define( 'WC_OPAY_VERSION', '3.1.6' );
 define( 'WC_OPAY_MIN_PHP_VER', '5.0.0' );
 define( 'WC_OPAY_MIN_WC_VER', '2.5.0' );
+define( 'WC_OPAY_MAIN_FILE', __FILE__ );
 
 class WC_OPay_Payment {
-    
+
     private static $instance;
 
     /**
@@ -123,7 +124,7 @@ class WC_OPay_Payment {
 
         foreach ( (array) $this->notices as $notice_key => $notice ) {
             echo "<div class='" . esc_attr( $notice['class'] ) . "'><p>";
-            echo wp_kses( $notice['message'], array( 
+            echo wp_kses( $notice['message'], array(
                     'a' => array(
                         'href' => array()
                     ),
@@ -145,6 +146,7 @@ class WC_OPay_Payment {
         if ( class_exists( 'WC_Payment_Gateway_CC' ) ) {
             include_once( dirname( __FILE__ ) . '/lib/AllPay.Payment.Integration.php' );    // 載入SDK
             include_once( dirname( __FILE__ ) . '/lib/class-wc-gateway-opay.php' );
+            include_once( dirname( __FILE__ ) . '/lib/helpers/OpayPaymentHelper.php' ); // 載入金流Helper
         }
 
         // 載入語系檔
@@ -158,7 +160,7 @@ class WC_OPay_Payment {
     {
         if ( $this->is_woocommerce_payment_active() ) return;
 
-        $args = array( 
+        $args = array(
             'post_id' => $order->get_id()
         );
 
