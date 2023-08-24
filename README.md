@@ -15,9 +15,9 @@
  
 
 ## 2. 適用版本
-  - Wordpress 4.5.3 / 4.6.1 / 4.7.3 / 4.8.0~4.8.2 / 4.8.9
-  - WooCommerce 2.6.0 ~ 2.6.14 / 3.1.0 ~ 3.1.2 / 3.2.0 / 3.4.6 
-  - [PHP](https://www.php.net/): 5.6.20 / 7.4 
+  - Wordpress 6.2
+  - WooCommerce 7.7.0
+  - [PHP](https://www.php.net/): 8.0
 
 
 ## 3. 安裝導引教學

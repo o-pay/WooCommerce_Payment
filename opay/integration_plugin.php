@@ -1,23 +1,25 @@
 <?php
 /**
 * @copyright  Copyright © 2017 O'Pay Electronic Payment Co., Ltd.(https://www.opay.tw)
-* @version 1.2.190506
+* @version 1.4.230824
 *
-* Plugin Name: WooCommerce O'Pay Payment
+* Plugin Name: O'Pay Payment for WooCommerce
 * Plugin URI: https://www.opay.tw
 * Description: O'Pay Integration Payment Gateway for WooCommerce
-* Version: 1.2.190506
+* Version: 1.4.230824
 * Author: O'Pay Electronic Payment Co., Ltd.
 * Author URI: https://www.opay.tw
+* Text Domain: opay
+* License: GPLv2+
 */
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 require_once(ABSPATH . 'wp-admin/includes/file.php');
-define( 'WC_OPAY_VERSION', '3.1.6' );
-define( 'WC_OPAY_MIN_PHP_VER', '5.0.0' );
-define( 'WC_OPAY_MIN_WC_VER', '2.5.0' );
+define( 'WC_OPAY_VERSION', '6.2.0' );
+define( 'WC_OPAY_MIN_PHP_VER', '8.0.0' );
+define( 'WC_OPAY_MIN_WC_VER', '7.7.0' );
 define( 'WC_OPAY_MAIN_FILE', __FILE__ );
 
 class WC_OPay_Payment {
@@ -144,9 +146,9 @@ class WC_OPay_Payment {
         }
 
         if ( class_exists( 'WC_Payment_Gateway_CC' ) ) {
-            include_once( dirname( __FILE__ ) . '/lib/AllPay.Payment.Integration.php' );    // 載入SDK
+            include_once( dirname( __FILE__ ) . '/lib/Opay.Payment.Integration.Shell.php' ); // 載入SDK
             include_once( dirname( __FILE__ ) . '/lib/class-wc-gateway-opay.php' );
-            include_once( dirname( __FILE__ ) . '/lib/helpers/OpayPaymentHelper.php' ); // 載入金流Helper
+            include_once( dirname( __FILE__ ) . '/lib/helpers/OpayPaymentHelper.php' );      // 載入金流Helper
         }
 
         // 載入語系檔
@@ -184,13 +186,13 @@ class WC_OPay_Payment {
 
         if (sizeof($orderDetails) > 0) {
             echo '
-                <h2 style="margin-top: 0px;padding-top: 0px;">' . __( 'Order note', 'ecpay' ) . '</h2>
+                <h2 style="margin-top: 0px;padding-top: 0px;">' . __( 'Order note', 'opay' ) . '</h2>
                 <table class="woocommerce-table woocommerce-table--order-details shop_table order_details">
                     <tfoot>
                         <tr>
-                            <th scope="row">' . __( 'Payment Method', 'ecpay' ) . ': </th>
+                            <th scope="row">' . __( 'Payment Method', 'opay' ) . ': </th>
                             <td>
-                                ' . print_r($orderDetails, true) . '
+                                ' . esc_html(print_r($orderDetails, true)) . '
                             </td>
                         </tr>
                     </tfoot>

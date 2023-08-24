@@ -6,7 +6,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
     public $hash_key;
     public $hash_iv;
     public $choose_payment;
-    public $payment_methods;
+    public $payment_methods = array();
     public $domain;
     public $paymentHelper;
 
@@ -43,8 +43,9 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
         $this->payment_methods = $this->get_option($this->id . '_payment_methods');
 
         # Load the helper
-        $this->paymentHelper = new paymentHelper();
+        $this->paymentHelper = new OpayPaymentHelper();
         $this->paymentHelper->setMerchantId($this->merchant_id);
+        $this->paymentHelper->setTimezone(get_option('timezone_string'));
 
         # Register a action to save administrator settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
@@ -74,8 +75,8 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
      */
     public function admin_options()
     {
-        echo $this->add_next_line('<h3>' . $this->tran($this->context . ' Integration Payments') . '</h3>');
-        echo $this->add_next_line('<p>' . $this->tran($this->context. ' is the most popular payment gateway for online shopping in Taiwan') . '</p>');
+        echo $this->add_next_line('<h3>' . esc_html($this->tran($this->context . ' Integration Payments')) . '</h3>');
+        echo $this->add_next_line('<p>' .  esc_html($this->tran($this->context . ' is the most popular payment gateway for online shopping in Taiwan')) . '</p>');
         echo $this->add_next_line('<table class="form-table">');
 
         # Generate the HTML For the settings form.
@@ -90,14 +91,16 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
     public function payment_fields()
     {
         if (!empty($this->description)) {
-            echo $this->add_next_line($this->description . '<br /><br />');
+            echo $this->add_next_line(esc_html($this->description) . '<br /><br />');
         }
-        echo $this->tran('Payment Method') . ' : ';
-        echo $this->add_next_line('<select name="'. $this->id .'_choose_payment">');
-        foreach ($this->payment_methods as $payment_method) {
-            echo $this->add_next_line('  <option value="' . $payment_method . '">');
-            echo $this->add_next_line('    ' . $this->get_payment_desc($payment_method));
-            echo $this->add_next_line('  </option>');
+        echo esc_html($this->tran('Payment Method') . ' : ');
+        echo $this->add_next_line('<select name="'. esc_attr($this->id .'_choose_payment' ) .'">');
+        if (is_array($this->payment_methods)) {
+            foreach ($this->payment_methods as $payment_method) {
+                echo $this->add_next_line('  <option value="' . esc_attr($payment_method) . '">');
+                echo $this->add_next_line('    ' . esc_html($this->get_payment_desc($payment_method)));
+                echo $this->add_next_line('  </option>');
+            }
         }
         echo $this->add_next_line('</select>');
     }
@@ -108,9 +111,11 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
      */
     public function validate_fields()
     {
-        $get_choose_payment = $_POST[$this->id . '_choose_payment'];
-        $payment_desc = $this->get_payment_desc($get_choose_payment);
-        if ($_POST['payment_method'] == $this->id && !empty($payment_desc)) {
+        $get_choose_payment = sanitize_text_field($_POST[$this->id . '_choose_payment']);
+        $payment_desc       = $this->get_payment_desc($get_choose_payment);
+        $payment_method     = sanitize_text_field($_POST['payment_method']);
+
+        if ($payment_method == $this->id && !empty($payment_desc) && in_array($get_choose_payment, $this->payment_methods)) {
             $this->choose_payment = $get_choose_payment;
             return true;
         } else {
@@ -126,10 +131,12 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
     {
         # Update order status
         $order = new WC_Order($order_id);
-        $order->update_status('pending', $this->tran('Awaiting '. $this->context .' payment'));
+        $order->update_status('pending', esc_html($this->tran('Awaiting '. $this->context .' payment')));
 
         # Set the O'Pay payment type to the order note
-        $order->add_order_note($this->choose_payment, true);
+        $order->add_order_note(
+            esc_html($this->choose_payment), true
+        );
 
         return array(
             'result' => 'success',
@@ -156,21 +163,21 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
             $choose_installment = '';
             if (isset($notes[0])) {
                 $chooseParam = explode('_', $notes[0]->comment_content);
-                $choose_payment =isset($chooseParam[0]) ? $chooseParam[0] : '';
+                $choose_payment = isset($chooseParam[0]) ? $chooseParam[0] : '';
                 $choose_installment = isset($chooseParam[1]) ? $chooseParam[1] : '';
             }
 
             $data = array(
-               'choosePayment' => $choose_payment,
-               'hashKey' => $this->hash_key,
-               'hashIv' => $this->hash_iv,
-               'returnUrl' => add_query_arg('wc-api', 'WC_Gateway_Opay', home_url('/')),
-               'clientBackUrl' => $this->get_return_url($order),
-               'orderId' => $order->get_id(),
-               'total' => $order->get_total(),
-               'itemName' => '網路商品一批',
-               'cartName' => 'woocommerce',
-               'currency' => $order->get_currency(),
+               'choosePayment'     => $choose_payment,
+               'hashKey'           => $this->hash_key,
+               'hashIv'            => $this->hash_iv,
+               'returnUrl'         => add_query_arg('wc-api', 'WC_Gateway_Opay', home_url('/')),
+               'clientBackUrl'     => $this->get_return_url($order),
+               'orderId'           => $order->get_id(),
+               'total'             => $order->get_total(),
+               'itemName'          => '網路商品一批',
+               'cartName'          => 'woocommerce',
+               'currency'          => $order->get_currency(),
                'needExtraPaidInfo' => 'Y',
             );
 
@@ -197,7 +204,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                 'hashKey' => $this->hash_key,
                 'hashIv'=> $this->hash_iv,
             );
-            $feedback = $this->paymentHelper->getFeedback($data);
+            $feedback = $this->paymentHelper->getValidFeedback($data);
 
             if(count($feedback) < 1) {
                 throw new Exception('Get '. $this->context .' feedback failed.');
@@ -222,13 +229,13 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                     # Set the common comments
                     $comments = sprintf(
                         $this->tran('Payment Method : %s<br />Trade Time : %s<br />'),
-                        $feedback['PaymentType'],
-                        $feedback['TradeDate']
+                        esc_html($feedback['PaymentType']),
+                        esc_html($feedback['TradeDate'])
                     );
 
                     # Set the getting code comments
-                    $return_code = $feedback['RtnCode'];
-                    $return_message = $feedback['RtnMsg'];
+                    $return_code    = esc_html($feedback['RtnCode']);
+                    $return_message = esc_html($feedback['RtnMsg']);
                     $get_code_result_comments = sprintf(
                         $this->tran('Getting Code Result : (%s)%s'),
                         $return_code,
@@ -243,7 +250,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                     );
 
                     # Set the fail message
-                    $fail_message = sprintf('Order %s Exception.(%s: %s)', $cart_order_id, $return_code, $return_message);
+                    $fail_msg = sprintf('Order %s Exception.(%s: %s)', $cart_order_id, $return_code, $return_message);
 
                     # Get O'Pay payment method
                     $payment_method = $this->get_payment_method($feedback['PaymentType']);
@@ -251,7 +258,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                     # Set the order comments
                     switch($payment_method) {
 
-                        case PaymentMethod::Credit:
+                        case OpayPaymentMethod::Credit:
                             if ($return_code != 1 and $return_code != 800)
                             {
                                 throw new Exception($fail_msg);
@@ -278,9 +285,9 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                             }
                             break;
 
-                        case PaymentMethod::WebATM:
-                        case PaymentMethod::TopUpUsed:
-                        case PaymentMethod::WeiXinpay:
+                        case OpayPaymentMethod::WebATM:
+                        case OpayPaymentMethod::TopUpUsed:
+                        case OpayPaymentMethod::WeiXinpay:
                             if ($return_code != 1 and $return_code != 800)
                             {
                                 throw new Exception($fail_msg);
@@ -306,7 +313,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                                 }
                             }
                             break;
-                        case PaymentMethod::ATM:
+                        case OpayPaymentMethod::ATM:
                             if ($return_code != 1 and $return_code != 2 and $return_code != 800)
                             {
                                 throw new Exception($fail_msg);
@@ -318,7 +325,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                                     # Set the getting code result
                                     $comments .= $this->get_order_comments($feedback);
                                     $comments .= $get_code_result_comments;
-                                    $order->add_order_note($comments);
+                                    $order->add_order_note(esc_html($comments));
 
                                     // 紀錄付款資訊提供感謝頁面使用
                                     add_post_meta( $order->id, 'payment_method', 'ATM', true);
@@ -347,7 +354,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                                 }
                             }
                             break;
-                        case PaymentMethod::CVS:
+                        case OpayPaymentMethod::CVS:
                             if ($return_code != 1 and $return_code != 800 and $return_code != 10100073)
                             {
                                 throw new Exception($fail_msg);
@@ -359,7 +366,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                                     # Set the getting code result
                                     $comments .= $this->get_order_comments($feedback);
                                     $comments .= $get_code_result_comments;
-                                    $order->add_order_note($comments);
+                                    $order->add_order_note(esc_html($comments));
 
                                     // 紀錄付款資訊提供感謝頁面使用
                                     add_post_meta( $order->id, 'payment_method', 'CVS', true);
@@ -394,7 +401,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                 }
             }
         } catch (Exception $e) {
-            $error = $e->getMessage();
+            $error = esc_html($e->getMessage());
             if (!empty($order)) {
                 $comments .= sprintf($this->tran('Faild To Pay<br />Error : %s<br />'), $error);
                 $order->add_order_note($comments);
@@ -441,7 +448,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
      */
     private function tran($content)
     {
-        return __($content, $this->domain);
+        return __($content, 'opay');
     }
 
     /**
@@ -459,8 +466,8 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
      */
     private function invoke_module()
     {
-        if (!class_exists('AllInOne')) {
-            if (!require(plugin_dir_path(__FILE__) . '/lib/AllPay.Payment.Integration.php')) {
+        if (!class_exists('OpayWooAllInOne')) {
+            if (!require(plugin_dir_path(__FILE__) . '/lib/Opay.Payment.Integration.Shell.php')) {
                 throw new Exception($this->tran($this->context . ' module missed.'));
             }
         }
@@ -482,7 +489,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
      */
     private function opay_add_error($error_message)
     {
-        wc_add_notice($error_message, 'error');
+        wc_add_notice(esc_html($error_message), 'error');
     }
 
     /**
@@ -525,15 +532,15 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
             'ATM' =>
                 sprintf(
                     $this->tran('Bank Code : %s<br />Virtual Account : %s<br />Payment Deadline : %s<br />'),
-                    $feedback['BankCode'],
-                    $feedback['vAccount'],
-                    $feedback['ExpireDate']
+                    esc_html($feedback['BankCode']),
+                    esc_html($feedback['vAccount']),
+                    esc_html($feedback['ExpireDate'])
                 ),
             'CVS' =>
                 sprintf(
                     $this->tran('Trade Code : %s<br />Payment Deadline : %s<br />'),
-                    $feedback['PaymentNo'],
-                    $feedback['ExpireDate']
+                    esc_html($feedback['PaymentNo']),
+                    esc_html($feedback['ExpireDate'])
                 )
         );
 
@@ -549,47 +556,31 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
 
     function confirm_order($order, $comments, $feedback)
     {
-        $order->add_order_note($comments, true);
-        $order->payment_complete();
+        // 判斷是否為模擬付款
+        if ($feedback['SimulatePaid'] == 0) {
+            $order->add_order_note(esc_html($comments), true);
+            $order->payment_complete();
 
-        // 加入信用卡後四碼，提供電子發票開立使用
-        if(isset($feedback['card4no']) && !empty($feedback['card4no']))
-        {
-            add_post_meta( $order->get_id(), 'card4no', $feedback['card4no'], true);
-        }
-
-        // call invoice model
-        $invoice_active_ecpay = 0 ;
-        $invoice_active_opay = 0 ;
-
-        $active_plugins = (array) get_option( 'active_plugins', array() );
-        $active_plugins = array_merge( $active_plugins, get_site_option( 'active_sitewide_plugins', array() ) );
-
-        foreach ($active_plugins as $key => $value) {
-            if (strpos($value,'/woocommerce-ecpayinvoice.php') !== false) {
-                $invoice_active_ecpay = 1;
+            // 加入信用卡後四碼，提供電子發票開立使用
+            if(isset($feedback['card4no']) && !empty($feedback['card4no']))
+            {
+                add_post_meta( $order->get_id(), 'card4no', $feedback['card4no'], true);
             }
 
-            if (strpos($value,'/woocommerce-opayinvoice.php') !== false) {
-                $invoice_active_opay = 1;
-            }
-        }
+            // call invoice model
+            $invoice_active_ecpay = 0 ;
 
+            $active_plugins = (array) get_option( 'active_plugins', array() );
+            $active_plugins = array_merge( $active_plugins, get_site_option( 'active_sitewide_plugins', array() ) );
 
-        if ($invoice_active_ecpay == 0 && $invoice_active_opay == 1) { // opay
-            if (is_file( get_home_path() . '/wp-content/plugins/opay_invoice/woocommerce-opayinvoice.php')) {
-                $aConfig_Invoice = get_option('wc_opayinvoice_active_model');
-
-                // 記錄目前成功付款到第幾次
-                $nTotalSuccessTimes = ( isset($feedback['TotalSuccessTimes']) && ( empty($feedback['TotalSuccessTimes']) || $feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $feedback['TotalSuccessTimes'] ;
-                update_post_meta($order->get_id(), '_total_success_times', $nTotalSuccessTimes );
-
-                if (isset($aConfig_Invoice) && $aConfig_Invoice['wc_opay_invoice_enabled'] == 'enable' && $aConfig_Invoice['wc_opay_invoice_auto'] == 'auto' ) {
-                    do_action('opay_auto_invoice', $order->get_id(), $ecpay_feedback['SimulatePaid']);
+            foreach ($active_plugins as $key => $value) {
+                if (strpos($value,'/woocommerce-ecpayinvoice.php') !== false) {
+                    $invoice_active_ecpay = 1;
                 }
             }
-        } elseif ($invoice_active_ecpay == 1 && $invoice_active_opay == 0) { // ecpay
-            if (is_file( get_home_path() . '/wp-content/plugins/ecpay_invoice/woocommerce-ecpayinvoice.php')) {
+
+            // 開立發票
+            if ($invoice_active_ecpay == 1) {
                 $aConfig_Invoice = get_option('wc_ecpayinvoice_active_model');
 
                 // 記錄目前成功付款到第幾次
@@ -597,9 +588,12 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                 update_post_meta($order->get_id(), '_total_success_times', $nTotalSuccessTimes );
 
                 if (isset($aConfig_Invoice) && $aConfig_Invoice['wc_ecpay_invoice_enabled'] == 'enable' && $aConfig_Invoice['wc_ecpay_invoice_auto'] == 'auto' ) {
-                    do_action('ecpay_auto_invoice', $order->get_id(), $ecpay_feedback['SimulatePaid']);
+                    do_action('ecpay_auto_invoice', $order->get_id(), $feedback['SimulatePaid']);
                 }
             }
+        } elseif ($feedback['SimulatePaid'] == 1) {
+            // 模擬付款，僅更新備註
+            $order->add_order_note($this->tran('Simulate paid, update the note only.'));
         }
     }
 
@@ -628,7 +622,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
         $payment_method = get_post_meta($order_id, 'payment_method', true);
 
         switch($payment_method) {
-            case PaymentMethod::CVS:
+            case OpayPaymentMethod::CVS:
                 $PaymentNo = get_post_meta($order_id, 'PaymentNo', true);
                 $ExpireDate = get_post_meta($order_id, 'ExpireDate', true);
 
@@ -646,7 +640,7 @@ class WC_Gateway_Opay extends WC_Payment_Gateway
                 $has_details = true ;
             break;
 
-            case PaymentMethod::ATM:
+            case OpayPaymentMethod::ATM:
                 $BankCode = get_post_meta($order_id, 'BankCode', true);
                 $vAccount = get_post_meta($order_id, 'vAccount', true);
                 $ExpireDate = get_post_meta($order_id, 'ExpireDate', true);
@@ -734,12 +728,14 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
         # Load the administrator settings
         $this->init_settings();
         $this->title = $this->get_option( 'title' );
-        $admin_options = get_option('woocommerce_'. $this->domain .'_settings');
-        $this->merchant_id = $admin_options[$this->domain . '_merchant_id'];
-        $this->hash_key = $admin_options[$this->domain . '_hash_key'];
-        $this->hash_iv = $admin_options[$this->domain . '_hash_iv'];
-        $this->dca_payment = $this->getDcaPayment();
 
+	    $admin_options = get_option('woocommerce_'. $this->domain .'_settings');
+        if (is_array($admin_options)) {
+            $this->merchant_id = $admin_options[$this->domain . '_merchant_id'];
+            $this->hash_key = $admin_options[$this->domain . '_hash_key'];
+            $this->hash_iv = $admin_options[$this->domain . '_hash_iv'];
+        }
+        $this->dca_payment = $this->getDcaPayment();
 
         $this->opay_dca = get_option( 'woocommerce_'. $this->id,
             array(
@@ -752,8 +748,9 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
         );
 
         # Load the helper
-        $this->paymentHelper = new paymentHelper();
+        $this->paymentHelper = new OpayPaymentHelper();
         $this->paymentHelper->setMerchantId($this->merchant_id);
+        $this->paymentHelper->setTimezone(get_option('timezone_string'));
 
         # Register a action to save administrator settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
@@ -802,7 +799,7 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
 
         ?>
         <tr valign="top">
-            <th scope="row" class="titledesc"><?php echo $this->tran($this->context . ' Paid Automatically Details'); ?></th>
+            <th scope="row" class="titledesc"><?php echo esc_html($this->tran($this->context . ' Paid Automatically Details')); ?></th>
             <td class="forminp" id="opay_dca">
                 <table class="widefat wc_input_table sortable" cellspacing="0" style="width: 600px;">
                     <thead>
@@ -860,7 +857,7 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
                     </tfoot>
                 </table>
                 <p class="description"><?php echo $this->tran('Don\'t forget to save after make any changes.'); ?></p>
-                <p id="fieldsNotification" style="display: none;"><?php echo $this->tran($this->context . ' paid automatically details has been repeatedly, please confirm again.'); ?></p>
+                <p id="fieldsNotification" style="display: none;"><?php echo esc_html($this->tran($this->context . ' paid automatically details has been repeatedly, please confirm again.')); ?></p>
                 <script type="text/javascript">
                     jQuery(function() {
                         jQuery('#opay_dca').on( 'click', 'a.add', function() {
@@ -980,20 +977,19 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
         $dca = array();
 
         if ( isset( $_POST['periodType'] ) ) {
-
-            $periodTypes = array_map( 'wc_clean', $_POST['periodType'] );
-            $frequencys = array_map( 'wc_clean', $_POST['frequency'] );
-            $execTimes = array_map( 'wc_clean', $_POST['execTimes'] );
-
-            foreach ( $periodTypes as $i => $name ) {
+            $periodTypes = wc_clean($_POST['periodType']);
+            $frequencys  = wc_clean($_POST['frequency']);
+            $execTimes   = wc_clean($_POST['execTimes']);
+            
+	        foreach ( $periodTypes as $i => $name ) {
                 if ( ! isset( $periodTypes[ $i ] ) ) {
                     continue;
                 }
 
                 $dca[] = array(
                     'periodType' => $periodTypes[ $i ],
-                    'frequency' => $frequencys[ $i ],
-                    'execTimes' => $execTimes[ $i ],
+                    'frequency'  => $frequencys[ $i ],
+                    'execTimes'  => $execTimes[ $i ],
                 );
             }
         }
@@ -1015,7 +1011,8 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
             'D' => ' ' . $this->tran('day')
         ];
         $opay = '';
-        foreach ($dca as $dca) {
+        if (is_array($dca)) {
+	foreach ($dca as $dca) {
             $option = sprintf(
                     $this->tran('NT$ %d / %s %s, up to a maximun of %s'),
                     (int)$woocommerce->cart->total,
@@ -1024,16 +1021,17 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
                     $dca['execTimes']
                 );
             $opay .= '
-                <option value="' . $dca['periodType'] . '_' . $dca['frequency'] . '_' . $dca['execTimes'] . '">
-                    ' . $option . '
+                <option value="' . esc_attr($dca['periodType'] . '_' . $dca['frequency'] . '_' . $dca['execTimes']) . '">
+                    ' . esc_html($option) . '
                 </option>';
         }
+	}
         echo '
-            <select id="'. $this->id .'_payment" name="'. $this->id .'_payment">
+            <select id="'. esc_attr($this->id . '_payment') .'" name="'. esc_attr($this->id . '_payment') .'">
                 <option>------</option>
                 ' . $opay . '
             </select>
-            <div id="'. $this->id .'_show"></div>
+            <div id="'. esc_attr($this->id .'_show') .'"></div>
             <hr style="margin: 12px 0px;background-color: #eeeeee;">
             <p style="font-size: 0.8em;color: #c9302c;">
                 你將使用<strong>歐付寶定期定額信用卡付款</strong>，請留意你所購買的商品為<strong>非單次扣款</strong>商品。
@@ -1062,7 +1060,7 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
      */
     private function tran($content)
     {
-        return __($content, $this->domain);
+        return __($content, 'opay');
     }
 
     /**
@@ -1070,8 +1068,8 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
      */
     private function invoke_module()
     {
-        if (!class_exists('AllInOne')) {
-            if (!require(plugin_dir_path(__FILE__) . '/lib/AllPay.Payment.Integration.php')) {
+        if (!class_exists('OpayWooAllInOne')) {
+            if (!require(plugin_dir_path(__FILE__) . '/lib/Opay.Payment.Integration.Shell.php')) {
                 throw new Exception($this->tran($this->context . ' module missed.'));
             }
         }
@@ -1082,9 +1080,10 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
      */
     public function validate_fields()
     {
-        $get_choose_payment = $_POST[$this->id.'_payment'];
+        $get_choose_payment = sanitize_text_field($_POST[$this->id.'_payment']);
+        $payment_method     = sanitize_text_field($_POST['payment_method']);
 
-        if ($_POST['payment_method'] == $this->id && in_array($get_choose_payment, $this->dca_payment)) {
+        if ($payment_method == $this->id && in_array($get_choose_payment, $this->dca_payment)) {
             $this->choose_payment = $get_choose_payment;
             return true;
         } else {
@@ -1099,7 +1098,7 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
      */
     private function opay_add_error($error_message)
     {
-        wc_add_notice($error_message, 'error');
+        wc_add_notice(esc_html($error_message), 'error');
     }
 
     /**
@@ -1109,10 +1108,10 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
     {
         # Update order status
         $order = new WC_Order($order_id);
-        $order->update_status('pending', $this->tran('Awaiting opay payment'));
+        $order->update_status('pending', esc_html($this->tran('Awaiting opay payment')));
 
         # Set the opay payment type to the order note
-        $order->add_order_note('Credit_' . $this->choose_payment, true);
+        $order->add_order_note(esc_html('Credit_' . $this->choose_payment), true);
 
         return array(
             'result' => 'success',
@@ -1132,12 +1131,12 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
 
         try {
             $this->invoke_module();
-            $aio = new AllInOne();
+            $aio = new OpayAllInOne();
             $aio->Send['MerchantTradeNo'] = '';
             $service_url = '';
             if ($this->paymentHelper->isTestMode($this->merchant_id)) {
                 $service_url = 'https://payment-stage.'. $this->domain .'.tw/Cashier/AioCheckOut';
-                $aio->Send['MerchantTradeNo'] = date('YmdHis');
+                $aio->Send['MerchantTradeNo'] = date('ymdHi');
             } else {
                 $service_url = 'https://payment.'. $this->domain .'.tw/Cashier/AioCheckOut';
             }
@@ -1148,7 +1147,7 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
             $aio->Send['ReturnURL'] = add_query_arg('wc-api', 'WC_Gateway_Opay', home_url('/'));
             $aio->Send['ClientBackURL'] = $this->get_return_url($order);
             $aio->Send['MerchantTradeNo'] .= $order->get_id();
-            $aio->Send['MerchantTradeDate'] = date('Y/m/d H:i:s');
+            $aio->Send['MerchantTradeDate'] = $this->paymentHelper->getDateTime('Y/m/d H:i:s', '');
 
             // 接收額外回傳參數 提供電子發票使用 v1.1.0911
             $aio->Send['NeedExtraPaidInfo'] = 'Y';
@@ -1199,7 +1198,7 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
         try {
             # Retrieve the check out result
             $this->invoke_module();
-            $aio = new AllInOne();
+            $aio = new OpayAllInOne();
             $aio->HashKey = $this->hash_key;
             $aio->HashIV = $this->hash_iv;
             $aio->MerchantID = $this->merchant_id;
@@ -1211,7 +1210,7 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
                 # Get the cart order id
                 $cart_order_id = $feedback['MerchantTradeNo'];
                 if ($this->paymentHelper->isTestMode($this->merchant_id)) {
-                    $cart_order_id = substr($feedback['MerchantTradeNo'], 14);
+                    $cart_order_id = substr($feedback['MerchantTradeNo'], 10);
                 }
 
                 # Get the cart order amount
@@ -1219,7 +1218,7 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
                 $cart_amount = round($order->get_total(), 0);
 
                 # Check the amounts
-                $amount = $feedback['Amount'];
+                $amount = $feedback['amount'];
                 if ($cart_amount != $amount) {
                     throw new Exception('Order ' . $cart_order_id . ' amount are not identical.');
                 }
@@ -1228,13 +1227,13 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
                     # Set the common comments
                     $comments = sprintf(
                         $this->tran('Payment Method : %s<br />Trade Time : %s<br />'),
-                        $feedback['PaymentType'],
-                        $feedback['TradeDate']
+                        esc_html($feedback['PaymentType']),
+                        esc_html($feedback['TradeDate'])
                     );
 
                     # Set the getting code comments
-                    $return_code = $feedback['RtnCode'];
-                    $return_message = $feedback['RtnMsg'];
+                    $return_code    = esc_html($feedback['RtnCode']);
+                    $return_message = esc_html($feedback['RtnMsg']);
                     $get_code_result_comments = sprintf(
                         $this->tran('Getting Code Result : (%s)%s'),
                         $return_code,
@@ -1249,7 +1248,7 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
                     );
 
                     # Set the fail message
-                    $fail_message = sprintf('Order %s Exception.(%s: %s)', $cart_order_id, $return_code, $return_message);
+                    $fail_msg = sprintf('Order %s Exception.(%s: %s)', $cart_order_id, $return_code, $return_message);
 
                     # Set the order comments
                     if ($return_code != 1 and $return_code != 800) {
@@ -1264,7 +1263,7 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
                 }
             }
         } catch (Exception $e) {
-            $error = $e->getMessage();
+            $error = esc_html($e->getMessage());
             if (!empty($order)) {
                 $comments .= sprintf($this->tran('Faild To Pay<br />Error : %s<br />'), $error);
                 $order->add_order_note($comments);
@@ -1300,48 +1299,31 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
      */
     function confirm_order($order, $comments, $feedback)
     {
-        $order->add_order_note($comments, true);
-        $order->payment_complete();
+        // 判斷是否為模擬付款
+        if ($feedback['SimulatePaid'] == 0) {
+            $order->add_order_note(esc_html($comments), true);
+            $order->payment_complete();
 
-        // 加入信用卡後四碼，提供電子發票開立使用
-        if(isset($feedback['card4no']) && !empty($feedback['card4no']))
-        {
-            add_post_meta( $order->get_id(), 'card4no', $feedback['card4no'], true);
-        }
-
-        // call invoice model
-        $invoice_active_ecpay = 0 ;
-        $invoice_active_opay = 0 ;
-
-        $active_plugins = (array) get_option( 'active_plugins', array() );
-        $active_plugins = array_merge( $active_plugins, get_site_option( 'active_sitewide_plugins', array() ) );
-
-        foreach ($active_plugins as $key => $value) {
-            if (strpos($value,'/woocommerce-ecpayinvoice.php') !== false) {
-                $invoice_active_ecpay = 1;
+            // 加入信用卡後四碼，提供電子發票開立使用
+            if(isset($feedback['card4no']) && !empty($feedback['card4no']))
+            {
+                add_post_meta( $order->get_id(), 'card4no', $feedback['card4no'], true);
             }
 
-            if (strpos($value,'/woocommerce-opayinvoice.php') !== false) {
-                $invoice_active_opay = 1;
-            }
-        }
+            // call invoice model
+            $invoice_active_ecpay = 0 ;
 
+            $active_plugins = (array) get_option( 'active_plugins', array() );
+            $active_plugins = array_merge( $active_plugins, get_site_option( 'active_sitewide_plugins', array() ) );
 
-        if ($invoice_active_ecpay == 0 && $invoice_active_opay == 1) { // opay
-            if (is_file( get_home_path() . '/wp-content/plugins/opay_invoice/woocommerce-opayinvoice.php')) {
-                $aConfig_Invoice = get_option('wc_opayinvoice_active_model');
-
-                // 記錄目前成功付款到第幾次
-                $nTotalSuccessTimes = ( isset($feedback['TotalSuccessTimes']) && ( empty($feedback['TotalSuccessTimes']) || $feedback['TotalSuccessTimes'] == 1 ))  ? '' :  $feedback['TotalSuccessTimes'] ;
-                update_post_meta($order->get_id(), '_total_success_times', $nTotalSuccessTimes );
-
-                if (isset($aConfig_Invoice) && $aConfig_Invoice['wc_opay_invoice_enabled'] == 'enable' && $aConfig_Invoice['wc_opay_invoice_auto'] == 'auto' ) {
-
-                    do_action('opay_auto_invoice', $order->get_id(), $ecpay_feedback['SimulatePaid']);
+            foreach ($active_plugins as $key => $value) {
+                if (strpos($value,'/woocommerce-ecpayinvoice.php') !== false) {
+                    $invoice_active_ecpay = 1;
                 }
             }
-        } elseif ($invoice_active_ecpay == 1 && $invoice_active_opay == 0) { // ecpay
-            if (is_file( get_home_path() . '/wp-content/plugins/ecpay_invoice/woocommerce-ecpayinvoice.php')) {
+
+            // 開立發票
+            if ($invoice_active_ecpay == 1) {
                 $aConfig_Invoice = get_option('wc_ecpayinvoice_active_model');
 
                 // 記錄目前成功付款到第幾次
@@ -1349,9 +1331,12 @@ class WC_Gateway_Opay_DCA extends WC_Payment_Gateway
                 update_post_meta($order->get_id(), '_total_success_times', $nTotalSuccessTimes );
 
                 if (isset($aConfig_Invoice) && $aConfig_Invoice['wc_ecpay_invoice_enabled'] == 'enable' && $aConfig_Invoice['wc_ecpay_invoice_auto'] == 'auto' ) {
-                    do_action('ecpay_auto_invoice', $order->get_id(), $ecpay_feedback['SimulatePaid']);
+                    do_action('ecpay_auto_invoice', $order->get_id(), $feedback['SimulatePaid']);
                 }
             }
+        } elseif ($feedback['SimulatePaid'] == 1) {
+            // 模擬付款，僅更新備註
+            $order->add_order_note($this->tran('Simulate paid, update the note only.'));
         }
     }
 
